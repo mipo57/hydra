@@ -557,6 +557,99 @@ def test_interpolation_accessing_parent_deprecated(
 @pytest.mark.parametrize(  # type: ignore
     "cfg, passthrough, expected",
     [
+        # direct
+        pytest.param(
+            {
+                "_target_": "tests.Tree",
+                "value": 1,
+                "left": {
+                    "_target_": "tests.Tree",
+                    "value": 21,
+                },
+                "right": {
+                    "_target_": "tests.Tree",
+                    "value": 22,
+                },
+            },
+            {},
+            Tree(value=1, left=Tree(value=21), right=Tree(value=22)),
+            id="recursive:direct:dict",
+        ),
+        pytest.param(
+            {"_target_": "tests.Tree"},
+            {"value": 1},
+            Tree(value=1),
+            id="recursive:direct:dict:passthrough",
+        ),
+        pytest.param(
+            {"_target_": "tests.Tree"},
+            {"value": 1, "left": {"_target_": "tests.Tree", "value": 2}},
+            Tree(value=1, left=Tree(2)),
+            id="recursive:direct:dict:passthrough",
+        ),
+        pytest.param(
+            {"_target_": "tests.Tree"},
+            {
+                "value": 1,
+                "left": {"_target_": "tests.Tree", "value": 2},
+                "right": {"_target_": "tests.Tree", "value": 3},
+            },
+            Tree(value=1, left=Tree(2), right=Tree(3)),
+            id="recursive:direct:dict:passthrough",
+        ),
+        pytest.param(
+            {"_target_": "tests.Tree"},
+            {"value": IllegalType()},
+            Tree(value=IllegalType()),
+            id="recursive:direct:dict:passthrough:incompatible_value",
+        ),
+        pytest.param(
+            {"_target_": "tests.Tree"},
+            {"value": 1, "left": {"_target_": "tests.Tree", "value": IllegalType()}},
+            Tree(value=1, left=Tree(value=IllegalType())),
+            id="recursive:direct:dict:passthrough:incompatible_value",
+        ),
+        pytest.param(
+            TreeConf(
+                value=1,
+                left=TreeConf(value=21),
+                right=TreeConf(value=22),
+            ),
+            {},
+            Tree(value=1, left=Tree(value=21), right=Tree(value=22)),
+            id="recursive:direct:dataclass",
+        ),
+        pytest.param(
+            TreeConf(
+                value=1,
+                left=TreeConf(value=21),
+            ),
+            {"right": {"value": 22}},
+            Tree(value=1, left=Tree(value=21), right=Tree(value=22)),
+            id="recursive:direct:dataclass:passthrough",
+        ),
+        pytest.param(
+            TreeConf(
+                value=1,
+                left=TreeConf(value=21),
+            ),
+            {"right": TreeConf(value=22)},
+            Tree(value=1, left=Tree(value=21), right=Tree(value=22)),
+            id="recursive:direct:dataclass:passthrough",
+        ),
+        pytest.param(
+            TreeConf(
+                value=1,
+                left=TreeConf(value=21),
+            ),
+            {
+                "right": TreeConf(value=IllegalType()),
+            },
+            Tree(value=1, left=Tree(value=21), right=Tree(value=IllegalType())),
+            id="recursive:direct:dataclass:passthrough",
+        ),
+        # list
+        # note that passthrough to a list element is not currently supported
         pytest.param(
             ComposeConf(
                 transforms=[
@@ -588,35 +681,9 @@ def test_interpolation_accessing_parent_deprecated(
                     Rotation(degrees=45),
                 ]
             ),
-            id="recursive:list:dataclass",
+            id="recursive:list:dict",
         ),
-        pytest.param(
-            {
-                "_target_": "tests.Tree",
-                "value": 1,
-                "left": {
-                    "_target_": "tests.Tree",
-                    "value": 21,
-                },
-                "right": {
-                    "_target_": "tests.Tree",
-                    "value": 22,
-                },
-            },
-            {},
-            Tree(value=1, left=Tree(value=21), right=Tree(value=22)),
-            id="recursive:direct:dict",
-        ),
-        pytest.param(
-            TreeConf(
-                value=1,
-                left=TreeConf(value=21),
-                right=TreeConf(value=22),
-            ),
-            {},
-            Tree(value=1, left=Tree(value=21), right=Tree(value=22)),
-            id="recursive:direct:dataclass",
-        ),
+        # map
         pytest.param(
             MappingConf(
                 dictionary={
@@ -632,6 +699,43 @@ def test_interpolation_accessing_parent_deprecated(
                 }
             ),
             id="recursive:map:dataclass",
+        ),
+        pytest.param(
+            {
+                "_target_": "tests.Mapping",
+                "dictionary": {
+                    "a": {"_target_": "tests.Mapping"},
+                    "b": {"_target_": "tests.Mapping"},
+                },
+            },
+            {},
+            Mapping(
+                dictionary={
+                    "a": Mapping(),
+                    "b": Mapping(),
+                }
+            ),
+            id="recursive:map:dict",
+        ),
+        pytest.param(
+            {
+                "_target_": "tests.Mapping",
+                "dictionary": {
+                    "a": {"_target_": "tests.Mapping"},
+                },
+            },
+            {
+                "dictionary": {
+                    "b": {"_target_": "tests.Mapping"},
+                },
+            },
+            Mapping(
+                dictionary={
+                    "a": Mapping(),
+                    "b": Mapping(),
+                }
+            ),
+            id="recursive:map:dict:passthrough",
         ),
     ],
 )

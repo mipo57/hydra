@@ -56,7 +56,7 @@ def _call(config: Any, recursive: bool, *args: Any, **kwargs: Any) -> Any:
         raise HydraException(f"Unsupported config type : {type(config).__name__}")
 
     # make a copy to ensure we do not change the provided object
-    config_copy = OmegaConf.structured(config)
+    config_copy = OmegaConf.structured(config, flags={"allow_objects": True})
     if OmegaConf.is_config(config):
         config_copy._set_parent(config._get_parent())
     config = config_copy

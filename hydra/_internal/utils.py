@@ -12,8 +12,8 @@ from traceback import print_exc, print_exception
 from types import FrameType
 from typing import Any, Callable, List, Optional, Sequence, Tuple, Type, Union
 
-from omegaconf import DictConfig, OmegaConf, read_write
-from omegaconf._utils import get_ref_type
+from omegaconf import DictConfig, OmegaConf, flag_override, read_write
+from omegaconf._utils import is_structured_config
 from omegaconf.errors import OmegaConfBaseException
 
 from hydra._internal.config_search_path_impl import ConfigSearchPathImpl
@@ -592,39 +592,36 @@ def _get_kwargs(
     ), f"Input config params are expected to be a mapping, found {type(config.params).__name__}"
 
     config_overrides = {}
-    passthrough = {}
     for k, v in kwargs.items():
-        if k in params and get_ref_type(params, k) is not Any:
-            config_overrides[k] = v
-        else:
-            passthrough[k] = v
+        config_overrides[k] = v
     final_kwargs = {}
 
+    overrides = OmegaConf.create(config_overrides, flags={"allow_objects": True})
     with read_write(params):
-        params.merge_with(config_overrides)
+        with flag_override(params, "allow_objects", True):
+            params.merge_with(overrides)
 
     for k, v in params.items_ex(resolve=False):
         if k == "_target_":
             continue
         final_kwargs[k] = v
 
-    for k, v in passthrough.items():
-        final_kwargs[k] = v
-
-    for k, v in passthrough.items():
-        final_kwargs[k] = v
-
     if recursive:
         from hydra.utils import _call
 
         def is_target(x: Any) -> bool:
-            return (
-                OmegaConf.is_config(x) and not OmegaConf.is_none(x) and "_target_" in x
-            )
+            if OmegaConf.is_config(x) and not OmegaConf.is_none(x):
+                return "_target_" in x
+            if isinstance(x, dict):
+                return "_target_" in x
+            if is_structured_config(x):
+                return hasattr(x, "_target_")
+            return False
 
         for k, v in final_kwargs.items():
             if is_target(v):
                 final_kwargs[k] = _call(v, recursive=recursive)
+
             elif OmegaConf.is_dict(v) and not OmegaConf.is_none(v):
                 final_kwargs[k] = {
                     key: _call(value, recursive=recursive) for key, value in v.items()
